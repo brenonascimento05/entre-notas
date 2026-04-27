@@ -334,6 +334,7 @@ footer{background:var(--dark-2);color:#b0a890;margin-top:60px;padding:44px 36px 
       🛒 Carrinho <span class="cart-count" id="cartCount">0</span>
     </button>
     <!-- Auth state: logged out -->
+    <button class="nav-btn" onclick="openAdminLogin()" style="border-color:rgba(201,151,58,.15);color:rgba(201,151,58,.4);font-size:.68rem;letter-spacing:1px;" title="Área Administrativa">⚙</button>
     <div id="authOut" style="display:flex;gap:6px;">
       <button class="nav-btn" onclick="openAuth('login')">Entrar</button>
       <button class="nav-btn primary" onclick="openAuth('register')">Cadastrar</button>
@@ -518,6 +519,23 @@ footer{background:var(--dark-2);color:#b0a890;margin-top:60px;padding:44px 36px 
       <div class="form-error" id="regErr"></div>
       <button class="btn-auth" onclick="doRegister()">CRIAR CONTA</button>
       <div class="auth-msg">Já tem conta? <a onclick="switchTab('login')">Entrar</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LOGIN ADMIN -->
+<div class="modal-bg" id="modalAdmin">
+  <div class="modal-box" style="max-width:380px;">
+    <div class="modal-header">
+      <div class="logo-icon" style="border-color:var(--gold);color:var(--gold);font-size:.8rem;">⚙</div>
+      <h2 style="font-size:1rem;letter-spacing:1px;">ÁREA ADMINISTRATIVA</h2>
+    </div>
+    <button class="modal-close" onclick="closeAdminLogin()">✕</button>
+    <div style="padding-top:8px;">
+      <div class="f-group"><label>Usuário</label><input type="text" id="adminUser" placeholder="admin" autocomplete="username"></div>
+      <div class="f-group"><label>Senha</label><input type="password" id="adminPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doAdminLogin()"></div>
+      <div class="form-error" id="adminErr" style="display:none;color:var(--red);font-size:.73rem;text-align:center;margin-bottom:8px;"></div>
+      <button class="btn-auth" onclick="doAdminLogin()">ACESSAR PAINEL</button>
     </div>
   </div>
 </div>
@@ -866,6 +884,39 @@ function toast(msg,type=''){
 
 // Fechar modal clicando fora
 document.getElementById('modalAuth').addEventListener('click',e=>{if(e.target===document.getElementById('modalAuth'))closeAuth();});
+document.getElementById('modalAdmin').addEventListener('click',e=>{if(e.target===document.getElementById('modalAdmin'))closeAdminLogin();});
+
+// ═══════════ ADMIN LOGIN ═══════════
+const ADMIN_USERS_KEY='en_admin_users';
+function getAdminUsers(){
+  const stored=LS.get('admin_users');
+  if(stored&&stored.length)return stored;
+  // usuários padrão
+  const defaults=[{id:1,usuario:'admin',senha:btoa('admin123'),nome:'Administrador',nivel:'master'}];
+  LS.set('admin_users',defaults);
+  return defaults;
+}
+function openAdminLogin(){
+  document.getElementById('adminUser').value='';
+  document.getElementById('adminPass').value='';
+  document.getElementById('adminErr').style.display='none';
+  document.getElementById('modalAdmin').classList.add('show');
+  setTimeout(()=>document.getElementById('adminUser').focus(),100);
+}
+function closeAdminLogin(){document.getElementById('modalAdmin').classList.remove('show');}
+function doAdminLogin(){
+  const user=document.getElementById('adminUser').value.trim();
+  const pass=document.getElementById('adminPass').value;
+  const err=document.getElementById('adminErr');
+  if(!user||!pass){err.textContent='Preencha usuário e senha.';err.style.display='block';return;}
+  const users=getAdminUsers();
+  const found=users.find(u=>u.usuario===user&&u.senha===btoa(pass));
+  if(!found){err.textContent='Usuário ou senha inválidos.';err.style.display='block';return;}
+  // Salva sessão admin temporária e redireciona
+  sessionStorage.setItem('en_admin_session',JSON.stringify({...found,ts:Date.now()}));
+  window.open('admin/index.html','_blank');
+  closeAdminLogin();
+}
 
 init();
 </script>

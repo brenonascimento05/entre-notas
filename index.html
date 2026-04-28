@@ -776,7 +776,7 @@ function renderCartDrawer(){
 }
 function updateQty(i,q){if(q<1){removeCart(i);return;}carrinho[i].qty=q;saveCart();renderCartDrawer();}
 function removeCart(i){carrinho.splice(i,1);saveCart();renderCartDrawer();}
-function checkout(){
+async function checkout(){
   if(!currentUser){closeCart();openAuth('login');toast('Faça login para finalizar a compra','err');return;}
   const total=carrinho.reduce((a,i)=>a+i.preco*i.qty,0);
   // Salvar pedido no histórico do usuário

@@ -544,6 +544,10 @@ footer{background:var(--dark-2);color:#b0a890;margin-top:60px;padding:44px 36px 
 <div class="toast" id="toast"></div>
 
 <script>
+// ═══ CONFIG ═══
+const BASE_URL='https://brdortmund-teste.infinityfree.me';
+const AUTH_API=BASE_URL+'/api/admin/auth_cliente.php';
+
 // ═══════════ DATA ═══════════
 const produtosData = [
   {id:1,nome:'Khamrah',marca:'Lattafa',descricao:'Amadeirado e especiado intenso, com notas de canela, noz-moscada e baunilha cremosa.',aroma:'especiado',avaliacoes:2347,estrelas:4.8,vendas:850,destaque:true,
@@ -579,28 +583,36 @@ const LS={
 
 // ═══════════ INIT ═══════════
 async function init(){
-  carrinho=LS.arr('carrinho');
-  favoritos=LS.arr('favoritos');
-  currentUser=LS.get('currentUser');
-  updateAuthUI();
-  updateCartBadge();
-  updateFavCount();
-  await loadProdutos();
-  applyFilters();
-  // events
-  document.getElementById('searchInput').addEventListener('input',()=>{
-    clearTimeout(searchTO); searchTO=setTimeout(applyFilters,380);
-  });
-  document.querySelectorAll('.fcb').forEach(cb=>cb.addEventListener('change',applyFilters));
-  document.querySelectorAll('input[name="rating"]').forEach(r=>r.addEventListener('change',applyFilters));
+  try{
+    carrinho=LS.arr('carrinho');
+    favoritos=LS.arr('favoritos');
+    currentUser=LS.get('currentUser');
+    updateAuthUI();
+    updateCartBadge();
+    updateFavCount();
+    // Registrar eventos ANTES do fetch (evita botões travados se API falhar)
+    document.getElementById('searchInput').addEventListener('input',()=>{
+      clearTimeout(searchTO); searchTO=setTimeout(applyFilters,380);
+    });
+    document.querySelectorAll('.fcb').forEach(cb=>cb.addEventListener('change',applyFilters));
+    document.querySelectorAll('input[name="rating"]').forEach(r=>r.addEventListener('change',applyFilters));
+    // Carregar produtos (com fallback — nunca trava)
+    await loadProdutos();
+    applyFilters();
+  }catch(err){
+    console.warn('Init error:',err);
+    // Garante que produtos locais apareçam mesmo com erro
+    if(!produtos.length){produtos=produtosData.map(p=>({...p}));}
+    applyFilters();
+  }
 }
-
-const BASE_URL='https://brdortmund-teste.infinityfree.me';
-const AUTH_API=BASE_URL+'/api/admin/auth_cliente.php';
 
 async function loadProdutos(){
   try{
-    const r=await fetch(BASE_URL+'/api/produtos.php');
+    const controller=new AbortController();
+    const tid=setTimeout(()=>controller.abort(),5000); // timeout 5s
+    const r=await fetch(BASE_URL+'/api/produtos.php',{signal:controller.signal});
+    clearTimeout(tid);
     const d=await r.json();
     if(d.success&&d.data&&d.data.length){
       produtos=d.data.map(p=>({
@@ -611,10 +623,13 @@ async function loadProdutos(){
         variantes:(p.variantes||[]).map(v=>({ml:v.tamanho_ml,preco:v.preco,precoOriginal:v.preco_original,
           desconto:v.preco_original?Math.round((1-v.preco/v.preco_original)*100):0}))
       }));
-    }else throw new Error('no data');
+      return; // sucesso, não usa fallback
+    }
   }catch(e){
-    produtos=produtosData.map(p=>({...p}));
+    console.warn('API indisponível, usando dados locais.');
   }
+  // Fallback: dados locais sempre funcionam
+  produtos=produtosData.map(p=>({...p}));
 }
 
 // ═══════════ FILTERS ═══════════
@@ -830,7 +845,7 @@ async function doLogin(){
     if(!d.success){showErr(err,d.error||'E-mail ou senha inválidos.');return;}
     currentUser=d.user;LS.set('currentUser',d.user);
     updateAuthUI();closeAuth();toast(`Bem-vindo, ${d.user.nome.split(' ')[0]}! ✦`);
-  }catch(e){showErr(err,'Erro de conexão. Tente novamente.');}
+  }catch(e){showErr(err,'Serviço temporariamente indisponível. Tente novamente em instantes.');}
 }
 
 async function doRegister(){
@@ -847,7 +862,7 @@ async function doRegister(){
     if(!d.success){showErr(err,d.error||'Erro ao cadastrar.');return;}
     currentUser=d.user;LS.set('currentUser',d.user);
     updateAuthUI();closeAuth();toast(`Conta criada! Bem-vindo(a), ${d.user.nome.split(' ')[0]}! ✦`);
-  }catch(e){showErr(err,'Erro de conexão. Tente novamente.');}
+  }catch(e){showErr(err,'Serviço temporariamente indisponível. Tente novamente em instantes.');}
 }
 
 function logout(){currentUser=null;LS.set('currentUser',null);updateAuthUI();toast('Até logo! ✦');}
